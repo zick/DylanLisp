@@ -181,12 +181,71 @@ define function eval(obj, env)
       else
         tail(bind);
       end;
-    otherwise => "noimpl";
+    otherwise =>
+      let op = safe-car(obj);
+      let args = safe-cdr(obj);
+      if (op == #"quote")
+        safe-car(args);
+      elseif (op == #"if")
+        let c = eval(safe-car(args), env);
+        if (instance?(c, <string>))
+          c
+        elseif (c == #())
+          eval(safe-car(safe-cdr(safe-cdr(args))), env);
+        else
+          eval(safe-car(safe-cdr(args)), env);
+        end;
+      else
+        apply1(eval(op, env), evlis(args, env));
+      end;
   end;
+end;
+
+define function evlis(lst, env)
+  local method rec(lst, acc)
+    if (lst == #())
+      reverse!(acc);
+    else
+      let elm = eval(head(lst), env);
+      if (instance?(elm, <string>))
+        elm
+      else
+        rec(tail(lst), pair(elm, acc));
+      end;
+    end;
+  end;
+  rec(lst, #());
+end;
+
+define function apply1(fn, args)
+  if (instance?(fn, <string>))
+    fn;
+  elseif (instance?(args, <string>))
+    args;
+  elseif (instance?(fn, <function>))
+    fn(args);
+  else
+    concatenate(print-obj(fn), " is not function");
+  end;
+end;
+
+define function subr-car(args)
+  safe-car(safe-car(args));
+end;
+
+define function subr-cdr(args)
+  safe-cdr(safe-car(args));
+end;
+
+define function subr-cons(args)
+  pair(safe-car(args), safe-car(safe-cdr(args)));
 end;
 
 define function main (name :: <string>, arguments :: <vector>)
   add-to-env(#"t", #"t", g-env);
+  add-to-env(#"car", subr-car, g-env);
+  add-to-env(#"cdr", subr-cdr, g-env);
+  add-to-env(#"cons", subr-cons, g-env);
 
   let line = "";
   format-out("> ");
