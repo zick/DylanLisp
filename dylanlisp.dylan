@@ -66,18 +66,6 @@ define function read-atom(str)
   values(make-num-or-sym(str), next)
 end;
 
-define function print-obj(obj)
-  select (obj by instance?)
-    <empty-list> => "nil";
-    <number> => format-to-string("%d", obj);
-    <symbol> => as(<string>, obj);
-    <string> => concatenate("<error: ", obj, ">");
-    <pair> => "CONS";
-    <function> => "<subr>";
-    <vector> => "<expr>";
-  end;
-end;
-
 define function read1(str)
   str := skip-spaces(str);
   if (str = "")
@@ -85,11 +73,71 @@ define function read1(str)
   elseif (first(str) = kRPar)
     values(concatenate("invalid syntax: ", str), "");
   elseif (first(str) = kLPar)
-    values("noimpl", "");
+    read-list(copy-sequence(str, start: 1));
   elseif (first(str) = kQuote)
-    values("noimpl", "");
+    let (elm, next) = read1(copy-sequence(str, start: 1));
+    values(pair(#"quote", pair(elm, #())), next);
   else
     read-atom(str);
+  end;
+end;
+
+define function read-list(str)
+  let ret = #();
+  block (break)
+    while (#t)
+      str := skip-spaces(str);
+      if (str = "")
+        ret := "unfinished parenthesis";
+        break();
+      elseif (first(str) = kRPar)
+        ret := reverse!(ret);
+        str := copy-sequence(str, start: 1);
+        break();
+      else
+        let (elm, next) = read1(str);
+        if (instance?(elm, <string>))
+          ret := elm;
+          str := next;
+          break();
+        else
+          ret := pair(elm, ret);
+          str := next;
+        end
+      end;
+    end;
+  end;
+  values(ret, str);
+end;
+
+define function print-obj(obj)
+  select (obj by instance?)
+    <empty-list> => "nil";
+    <number> => format-to-string("%d", obj);
+    <symbol> => as(<string>, obj);
+    <string> => concatenate("<error: ", obj, ">");
+    <pair> => print-list(obj);
+    <function> => "<subr>";
+    <vector> => "<expr>";
+  end;
+end;
+
+define function print-list(obj)
+  let ret = "";
+  let first = #t;
+  while (instance?(obj, <pair>))
+    if (first)
+      first := #f;
+    else
+      ret := concatenate(ret, " ");
+    end;
+    ret := concatenate(ret, print-obj(head(obj)));
+    obj := tail(obj);
+  end;
+  if (obj == #())
+    concatenate("(", ret, ")");
+  else
+    concatenate("(", ret, " . ", print-obj(obj), ")");
   end;
 end;
 
