@@ -208,6 +208,11 @@ define function eval(obj, env)
         end;
       elseif (op == #"lambda")
         make-expr(args, env);
+      elseif (op == #"defun")
+        let expr = make-expr(safe-cdr(args), env);
+        let sym = safe-car(args);
+        add-to-env(sym, expr, g-env);
+        sym;
       else
         apply1(eval(op, env), evlis(args, env));
       end;
