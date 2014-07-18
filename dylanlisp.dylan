@@ -1,5 +1,13 @@
 Module: dylanlisp
 
+// <empty-list> -> nil
+// <number> -> num
+// <symbol> -> sym
+// <string> -> error
+// <pair> -> cons
+// <function> -> subr
+// <vector> -> expr
+
 define constant kLPar = '(';
 define constant kRPar = ')';
 define constant kQuote = '\'';
@@ -124,7 +132,7 @@ end;
 define function print-obj(obj)
   select (obj by instance?)
     <empty-list> => "nil";
-    <number> => format-to-string("%d", obj);
+    <number> => integer-to-string(obj);
     <symbol> => as(<string>, obj);
     <string> => concatenate("<error: ", obj, ">");
     <pair> => print-list(obj);
@@ -280,11 +288,88 @@ define function subr-cons(args)
   pair(safe-car(args), safe-car(safe-cdr(args)));
 end;
 
+define function subr-eq(args)
+  let x = safe-car(args);
+  let y = safe-car(safe-cdr(args));
+  if (instance?(x, <number>) & instance?(y, <number>))
+    if (x = y)
+      #"t";
+    else
+      #();
+    end;
+  elseif (x == y)
+    #"t";
+  else
+    #();
+  end;
+end;
+
+define function subr-atom(args)
+  if (instance?(safe-car(args), <pair>))
+    #();
+  else
+    #"t";
+  end;
+end;
+
+define function subr-numberp(args)
+  if (instance?(safe-car(args), <number>))
+    #"t";
+  else
+    #();
+  end;
+end;
+
+define function subr-symbolp(args)
+  if (instance?(safe-car(args), <symbol>))
+    #"t";
+  else
+    #();
+  end;
+end;
+
+define function subr-add-or-mul(fn, init-val)
+  method (args)
+    let ret = init-val;
+    while (instance?(args, <pair>))
+      if (~instance?(safe-car(args), <number>))
+        ret := "wrong type";
+        args := #();  // break
+      else
+        ret := fn(ret, safe-car(args));
+        args := tail(args);
+      end;
+    end;
+    ret;
+  end;
+end;
+
+define function subr-sub-or-div-or-mod(fn)
+  method (args)
+    let x = safe-car(args);
+    let y = safe-car(safe-cdr(args));
+    if (~instance?(x, <number>) | ~instance?(y, <number>))
+      "wrong type"
+    else
+      fn(x, y);
+    end;
+  end;
+end;
+
 define function main (name :: <string>, arguments :: <vector>)
   add-to-env(#"t", #"t", g-env);
   add-to-env(#"car", subr-car, g-env);
   add-to-env(#"cdr", subr-cdr, g-env);
   add-to-env(#"cons", subr-cons, g-env);
+  add-to-env(#"eq", subr-eq, g-env);
+  add-to-env(#"atom", subr-atom, g-env);
+  add-to-env(#"numberp", subr-numberp, g-env);
+  add-to-env(#"symbolp", subr-symbolp, g-env);
+  add-to-env(#"+", subr-add-or-mul(method(x, y) x + y end, 0), g-env);
+  add-to-env(#"*", subr-add-or-mul(method(x, y) x * y end, 1), g-env);
+  add-to-env(#"-", subr-sub-or-div-or-mod(method(x, y) x - y end), g-env);
+  add-to-env(#"/", subr-sub-or-div-or-mod(truncate/), g-env);
+  add-to-env(#"mod", subr-sub-or-div-or-mod(modulo), g-env);
 
   let line = "";
   format-out("> ");
