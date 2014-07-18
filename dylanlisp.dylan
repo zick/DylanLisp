@@ -24,6 +24,17 @@ define function make-expr(args, env)
   vector(safe-car(args), safe-cdr(args), env);
 end;
 
+define function pairlis(lst1, lst2)
+  local method rec(lst1, lst2, acc)
+    if (instance?(lst1, <pair>) & instance?(lst2, <pair>))
+      rec(tail(lst1), tail(lst2), pair(pair(head(lst1), head(lst2)), acc));
+    else
+      reverse!(acc);
+    end;
+  end;
+  rec(lst1, lst2, #());
+end;
+
 define function space?(c)
   c = '\t' | c = '\r' | c = '\n' | c = ' ';
 end;
@@ -195,6 +206,8 @@ define function eval(obj, env)
         else
           eval(safe-car(safe-cdr(args)), env);
         end;
+      elseif (op == #"lambda")
+        make-expr(args, env);
       else
         apply1(eval(op, env), evlis(args, env));
       end;
@@ -217,6 +230,15 @@ define function evlis(lst, env)
   rec(lst, #());
 end;
 
+define function progn(body, env)
+  let ret = #();
+  while (instance?(body, <pair>))
+    ret := eval(head(body), env);
+    body := tail(body);
+  end;
+  ret;
+end;
+
 define function apply1(fn, args)
   if (instance?(fn, <string>))
     fn;
@@ -224,6 +246,8 @@ define function apply1(fn, args)
     args;
   elseif (instance?(fn, <function>))
     fn(args);
+  elseif (instance?(fn, <vector>))
+    progn(second(fn), pair(pairlis(first(fn), args), third(fn)));
   else
     concatenate(print-obj(fn), " is not function");
   end;
