@@ -8,4 +8,7 @@ end library;
 define module dylanlisp
   use common-dylan, exclude: { format-to-string };
   use format-out;
+  use format;
+  use standard-io;
+  use streams;
 end module;
