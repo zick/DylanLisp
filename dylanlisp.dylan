@@ -213,6 +213,16 @@ define function eval(obj, env)
         let sym = safe-car(args);
         add-to-env(sym, expr, g-env);
         sym;
+      elseif (op == #"setq")
+        let val = eval(safe-car(safe-cdr(args)), env);
+        let sym = safe-car(args);
+        let bind = find-var(sym, env);
+        if (bind == #())
+          add-to-env(sym, val, g-env);
+        else
+          bind.tail := val;
+        end;
+        val;
       else
         apply1(eval(op, env), evlis(args, env));
       end;
