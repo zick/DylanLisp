@@ -141,13 +141,59 @@ define function print-list(obj)
   end;
 end;
 
+define function find-var(sym, env)
+  local method rec(alist)
+    if (alist == #())
+      #();
+    elseif (head(head(alist)) == sym)
+      head(alist);
+    else
+      rec(tail(alist));
+    end
+  end;
+  if (env == #())
+    #();
+  else
+    let result = rec(head(env));
+    if (result == #())
+      find-var(sym, tail(env));
+    else
+      result;
+    end;
+  end;
+end;
+
+define variable g-env = pair(#(), #());
+
+define function add-to-env(sym, val, env)
+  env.head := pair(pair(sym, val), head(env));
+end;
+
+define function eval(obj, env)
+  select (obj by instance?)
+    <empty-list> => obj;
+    <number> => obj;
+    <string> => obj;
+    <symbol> =>
+      let bind = find-var(obj, env);
+      if (bind == #())
+        concatenate(print-obj(obj), " has no value");
+      else
+        tail(bind);
+      end;
+    otherwise => "noimpl";
+  end;
+end;
+
 define function main (name :: <string>, arguments :: <vector>)
+  add-to-env(#"t", #"t", g-env);
+
   let line = "";
   format-out("> ");
   force-output(*standard-output*);
   while (line := read-line(*standard-input*, on-end-of-stream: #f))
     let (elm, _) = read1(line);
-    format-out(print-obj(elm));
+    format-out(print-obj(eval(elm, g-env)));
     format-out("\n> ");
     force-output(*standard-output*);
   end;
